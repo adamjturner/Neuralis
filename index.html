@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuralis - Deep Sleep Strobe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        
+        :root {
+            --strobe-color: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            color: #e5e5e5;
+            margin: 0;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* The Strobe Overlay */
+        #strobeSurface {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--strobe-color);
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            will-change: opacity;
+            transform: translateZ(0);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .program-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .program-card.active {
+            background: rgba(99, 102, 241, 0.25);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+        }
+
+        input[type=range] {
+            accent-color: #6366f1;
+            height: 6px;
+        }
+
+        #mainAction.ready-pulse {
+            animation: action-pulse var(--pulse-duration, 0.66s) infinite;
+        }
+
+        @keyframes action-pulse {
+            0%, 100% { background-color: #4f46e5; }
+            50% { background-color: #6366f1; opacity: 0.9; }
+        }
+
+        ::-webkit-scrollbar { display: none; }
+        
+        .science-link {
+            color: #818cf8;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .science-link:hover {
+            color: #a5b4fc;
+        }
+
+        .info-pill {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.65rem;
+            line-height: 1.2;
+        }
+        
+        .step-icon {
+            @apply w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold;
+        }
+
+        #customControls.hidden-custom {
+            display: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-start min-h-screen">
+
+    <!-- THE STROBE ELEMENT -->
+    <div id="strobeSurface"></div>
+
+    <!-- 1. WARNING SCREEN -->
+    <div id="warningScreen" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black p-6">
+        <div class="max-w-md w-full glass rounded-[2.5rem] p-10 text-center space-y-8">
+            <div class="text-indigo-500 text-6xl">✨</div>
+            <div class="space-y-4">
+                <h1 class="text-3xl font-bold tracking-tight text-white">Neuralis</h1>
+                <p class="text-gray-400 text-sm leading-relaxed">
+                    Stroboscopic brainwave entrainment. <br>
+                    <strong>Warning:</strong> Flashing lights. Do not use if you have photosensitive epilepsy or seizures.
+                </p>
+            </div>
+            <button onclick="acceptWarning()" class="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg transition-all shadow-xl shadow-indigo-600/20">
+                I UNDERSTAND
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. MAIN INTERFACE -->
+    <main id="mainApp" class="hidden w-full max-w-lg p-6 space-y-8 overflow-y-auto max-h-screen pb-24">
+        <header class="text-center py-6">
+            <h1 class="text-4xl font-extralight tracking-[0.4em] text-white">NEURALIS</h1>
+            <p class="text-indigo-400/50 text-[10px] mt-2 uppercase tracking-[0.3em] font-bold">Scientific Mind-Sync</p>
+        </header>
+
+        <!-- Selection Grid -->
+        <section class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div onclick="setProg('sleep', 1.5)" id="btn-sleep" class="program-card glass rounded-2xl p-6 active">
+                    <span class="text-3xl">🌙</span>
+                    <h3 class="font-bold text-base mt-3">Deep Sleep</h3>
+                    <p class="text-[11px] text-gray-500">1.5Hz Delta</p>
+                </div>
+                <div onclick="setProg('relax', 6.0)" id="btn-relax" class="program-card glass rounded-2xl p-6">
+                    <span class="text-3xl">🧘</span>
+                    <h3 class="font-bold text-base mt-3">Relaxation</h3>
+                    <p class="text-[11px] text-gray-500">6Hz Theta</p>
+                </div>
+                <div onclick="setProg('lucid', 4.5)" id="btn-lucid" class="program-card glass rounded-2xl p-6">
+                    <span class="text-3xl">⚡</span>
+                    <h3 class="font-bold text-base mt-3">Lucid Prep</h3>
+                    <p class="text-[11px] text-gray-500">4.5Hz Hypnagogic</p>
+                </div>
+                <div onclick="setProg('focus', 10.0)" id="btn-focus" class="program-card glass rounded-2xl p-6">
+                    <span class="text-3xl">🧠</span>
+                    <h3 class="font-bold text-base mt-3">Alpha Focus</h3>
+                    <p class="text-[11px] text-gray-500">10Hz Alpha</p>
+                </div>
+                <!-- Custom Option -->
+                <div onclick="setProg('custom')" id="btn-custom" class="program-card glass rounded-2xl p-6 col-span-2 flex items-center justify-center space-x-4">
+                    <span class="text-2xl">⚙️</span>
+                    <div class="text-left">
+                        <h3 class="font-bold text-base">Custom Tuning</h3>
+                        <p class="text-[11px] text-gray-500">Manual Frequency & Intensity</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Preset Description Box -->
+            <div id="presetDescription" class="glass rounded-xl p-4 text-[11px] text-indigo-200/80 leading-relaxed italic">
+                Delta waves (1.5Hz) are linked to the deepest stages of dreamless sleep and biological repair.
+            </div>
+        </section>
+
+        <!-- Frequency & Intensity Controls (Hidden by Default) -->
+        <section id="customControls" class="glass rounded-3xl p-8 space-y-8 hidden-custom">
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Manual Hz</label>
+                    <span class="text-3xl font-light text-indigo-300" id="hzLabel">1.5Hz</span>
+                </div>
+                <input type="range" id="hzRange" min="0.5" max="15" step="0.1" value="1.5" class="w-full">
+            </div>
+            
+            <div class="pt-6 border-t border-white/5 space-y-4">
+                <div class="flex justify-between items-center">
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Intensity</label>
+                    <span class="text-sm text-gray-400" id="intLabel">100%</span>
+                </div>
+                <input type="range" id="intRange" min="10" max="100" step="5" value="100" class="w-full">
+            </div>
+        </section>
+
+        <!-- Preferences -->
+        <div class="grid grid-cols-2 gap-3">
+            <div class="glass rounded-2xl p-5 space-y-3">
+                <div class="flex justify-between items-center">
+                   <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Audio Beats</span>
+                   <span id="audioStatus" class="text-[8px] text-gray-500 uppercase font-bold">OFF</span>
+                </div>
+                <div class="flex items-center space-x-3 mt-1">
+                    <button id="audioBtn" class="w-12 h-12 flex items-center justify-center bg-white/5 rounded-full border border-white/10 transition-all hover:bg-white/10">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    </button>
+                    <input type="range" id="volRange" min="0" max="0.5" step="0.01" value="0.2" class="w-full h-1">
+                </div>
+            </div>
+            <div class="glass rounded-2xl p-5 space-y-4">
+                <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Tone Hue</span>
+                <div class="flex justify-between items-center pt-1">
+                    <div onclick="setHue('#ffffff', 1)" class="w-7 h-7 rounded-full bg-white cursor-pointer ring-2 ring-indigo-500" id="hue-1"></div>
+                    <div onclick="setHue('#ffccaa', 2)" class="w-7 h-7 rounded-full bg-orange-200 cursor-pointer" id="hue-2"></div>
+                    <div onclick="setHue('#818cf8', 3)" class="w-7 h-7 rounded-full bg-indigo-400 cursor-pointer" id="hue-3"></div>
+                </div>
+                <div id="hueReasoning" class="text-[9px] text-gray-500 italic leading-tight">
+                    White: Max intensity for vivid visuals. Best for day/focus.
+                </div>
+            </div>
+        </div>
+
+        <!-- Duration & Session Science -->
+        <section class="glass rounded-2xl p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Duration</span>
+                <select id="durationSelect" class="bg-transparent text-indigo-400 font-bold focus:outline-none" onchange="updateDuration()">
+                    <option value="300">5 Mins</option>
+                    <option value="600" selected>10 Mins</option>
+                    <option value="1200">20 Mins</option>
+                    <option value="2700">45 Mins</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+                <div class="info-pill" id="durationHint">
+                    <strong>10 Mins:</strong> Ideal for rapid state-shifting and power naps. Research suggests 10m is effective for acute stress reduction.
+                </div>
+            </div>
+        </section>
+
+        <button id="mainAction" class="w-full py-7 rounded-[2.5rem] bg-indigo-600 text-white font-bold text-xl transition-all shadow-2xl shadow-indigo-600/30 uppercase tracking-[0.2em] ready-pulse">
+            Begin Journey
+        </button>
+
+        <!-- Usage Guide Section -->
+        <section class="space-y-6 pt-6">
+            <div class="flex items-center space-x-2 border-b border-white/10 pb-2">
+                <span class="text-indigo-400 text-sm">🧭</span>
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">How to Journey</h2>
+            </div>
+            <div class="grid grid-cols-1 gap-4">
+                <div class="glass p-5 rounded-2xl flex items-start space-x-4">
+                    <div class="step-icon">01</div>
+                    <div class="space-y-1">
+                        <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">The Environment</h4>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Find a dark, quiet room. Total darkness maximizes the contrast of the strobe.
+                        </p>
+                    </div>
+                </div>
+                <div class="glass p-5 rounded-2xl flex items-start space-x-4">
+                    <div class="step-icon">02</div>
+                    <div class="space-y-1">
+                        <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Posture & Audio</h4>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Lie down or recline. Wear headphones for the <strong>Binaural Beats</strong> synergy.
+                        </p>
+                    </div>
+                </div>
+                <div class="glass p-5 rounded-2xl flex items-start space-x-4">
+                    <div class="step-icon">03</div>
+                    <div class="space-y-1">
+                        <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Placement</h4>
+                        <p class="text-[11px] text-gray-400 leading-relaxed">
+                            Hold your device about <strong>12-18 inches</strong> from your face.
+                        </p>
+                    </div>
+                </div>
+                <div class="glass p-5 rounded-2xl flex items-start space-x-4 border border-indigo-500/20">
+                    <div class="step-icon bg-indigo-500/20">04</div>
+                    <div class="space-y-1">
+                        <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Eyes Closed</h4>
+                        <p class="text-[11px] text-indigo-200/60 leading-relaxed">
+                            <strong>Keep your eyes gently closed</strong>. Perceive the patterns through your eyelids.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Science & Evidence Section -->
+        <section class="space-y-6 pt-10">
+            <div class="flex items-center space-x-2 border-b border-white/10 pb-2">
+                <span class="text-indigo-400">📖</span>
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">The Science of Entrainment</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="glass p-5 rounded-2xl space-y-3">
+                    <p class="text-xs italic text-gray-300 leading-relaxed">
+                        "Stroboscopic stimulation offers a powerful non-pharmacological means of inducing altered states of consciousness..."
+                    </p>
+                    <div class="flex justify-between items-center text-[10px] text-indigo-400 uppercase tracking-widest">
+                        <span>— Sussex University (2019)</span>
+                        <a href="https://www.sussex.ac.uk/broadcast/read/50493" target="_blank" class="science-link">View Study</a>
+                    </div>
+                </div>
+
+                <div class="glass p-5 rounded-2xl space-y-3">
+                    <p class="text-xs italic text-gray-300 leading-relaxed">
+                        "0.5–4 Hz (Delta) waves are associated with deep, restorative, dreamless sleep and physical recovery."
+                    </p>
+                    <div class="flex justify-between items-center text-[10px] text-indigo-400 uppercase tracking-widest">
+                        <span>— Sleep Foundation</span>
+                        <a href="https://www.sleepfoundation.org/how-sleep-works/brain-waves-during-sleep" target="_blank" class="science-link">Source</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center pb-12">
+            <p class="text-[9px] text-gray-600 uppercase tracking-[0.2em]">Scientific Neural Optimization</p>
+        </footer>
+    </main>
+
+    <!-- 3. SESSION OVERLAY -->
+    <div id="sessionUI" class="hidden fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center p-8">
+        <div class="text-center space-y-8">
+            <h2 id="sessionHz" class="text-8xl font-thin tracking-tighter text-white">1.5Hz</h2>
+            <div class="space-y-1">
+                <p id="sessionTitleDisplay" class="text-indigo-400 tracking-[0.5em] text-xs font-bold uppercase">Deep Sleep</p>
+                <p id="sessionClock" class="text-gray-600 font-mono text-xl tabular-nums">10:00</p>
+            </div>
+        </div>
+        <button id="stopBtn" class="absolute bottom-20 px-12 py-5 border border-white/10 rounded-full text-xs text-white/40 uppercase tracking-[0.4em] hover:text-white hover:bg-white/5 transition-all">
+            End Session
+        </button>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            isRunning: false,
+            hz: 1.5,
+            intensity: 1.0,
+            hue: '#ffffff',
+            audioEnabled: false,
+            timerSeconds: 600
+        };
+
+        const presetDescriptions = {
+            'sleep': 'Delta waves (1.5Hz) are linked to the deepest stages of dreamless sleep and biological repair.',
+            'relax': 'Theta waves (6.0Hz) appear during deep meditation and light REM sleep.',
+            'lucid': 'A specific 4.5Hz frequency bridges the gap between wakefulness and sleep (Hypnagogia).',
+            'focus': 'Alpha waves (10.0Hz) represent relaxed alertness, reducing brain chatter.',
+            'custom': 'Adjust the sliders below to manually define your entrainment frequency and light intensity.'
+        };
+
+        // DOM Elements
+        const strobeSurface = document.getElementById('strobeSurface');
+        const hzLabel = document.getElementById('hzLabel');
+        const sessionUI = document.getElementById('sessionUI');
+        const sessionHzDisplay = document.getElementById('sessionHz');
+        const sessionClockDisplay = document.getElementById('sessionClock');
+        const stopBtn = document.getElementById('stopBtn');
+        const mainAction = document.getElementById('mainAction');
+        const hueReasoning = document.getElementById('hueReasoning');
+        const durationHint = document.getElementById('durationHint');
+        const audioStatus = document.getElementById('audioStatus');
+        const audioBtn = document.getElementById('audioBtn');
+        const presetDescBox = document.getElementById('presetDescription');
+        const customControls = document.getElementById('customControls');
+
+        // Audio Engine
+        let audioCtx = null, leftOsc, rightOsc, gainNode;
+
+        function setupAudio() {
+            if (audioCtx) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = 0;
+                gainNode.connect(audioCtx.destination);
+                const merger = audioCtx.createChannelMerger(2);
+                leftOsc = audioCtx.createOscillator();
+                rightOsc = audioCtx.createOscillator();
+                leftOsc.connect(merger, 0, 0);
+                rightOsc.connect(merger, 0, 1);
+                merger.connect(gainNode);
+                leftOsc.start();
+                rightOsc.start();
+                syncAudio();
+            } catch(e) { console.error(e); }
+        }
+
+        function syncAudio() {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            leftOsc.frequency.setTargetAtTime(174, now, 0.1);
+            rightOsc.frequency.setTargetAtTime(174 + state.hz, now, 0.1);
+            gainNode.gain.setTargetAtTime(state.audioEnabled ? parseFloat(document.getElementById('volRange').value) : 0, now, 0.1);
+        }
+
+        function strobeLoop(now) {
+            if (!state.isRunning) {
+                strobeSurface.style.opacity = 0;
+                return;
+            }
+            const period = 1000 / state.hz;
+            const phase = (now % period) / period;
+            strobeSurface.style.opacity = (phase < 0.5) ? state.intensity : 0;
+            requestAnimationFrame(strobeLoop);
+        }
+
+        function startSession() {
+            if (!audioCtx) setupAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            state.isRunning = true;
+            sessionUI.classList.remove('hidden');
+            sessionHzDisplay.textContent = state.hz.toFixed(1) + "Hz";
+            updateClock();
+            clockInterval = setInterval(() => {
+                state.timerSeconds--;
+                updateClock();
+                if (state.timerSeconds <= 0) stopSession();
+            }, 1000);
+            requestAnimationFrame(strobeLoop);
+            syncAudio();
+        }
+
+        function stopSession() {
+            state.isRunning = false;
+            clearInterval(clockInterval);
+            sessionUI.classList.add('hidden');
+            strobeSurface.style.opacity = 0;
+            if (audioCtx) audioCtx.suspend();
+            state.timerSeconds = parseInt(document.getElementById('durationSelect').value);
+        }
+
+        function updateClock() {
+            const m = Math.floor(state.timerSeconds / 60);
+            const s = state.timerSeconds % 60;
+            sessionClockDisplay.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function updateDuration() {
+            state.timerSeconds = parseInt(document.getElementById('durationSelect').value);
+            const val = state.timerSeconds;
+            if (val <= 300) durationHint.innerHTML = "<strong>5 Mins:</strong> Perfect for micro-dosing calm.";
+            else if (val <= 600) durationHint.innerHTML = "<strong>10 Mins:</strong> The Goldilocks zone for stress reduction.";
+            else if (val <= 1200) durationHint.innerHTML = "<strong>20 Mins:</strong> Optimal for reaching deep Delta sleep.";
+            else durationHint.innerHTML = "<strong>45 Mins:</strong> Full sleep induction protocol.";
+        }
+
+        function acceptWarning() {
+            document.getElementById('warningScreen').style.display = 'none';
+            document.getElementById('mainApp').classList.remove('hidden');
+        }
+
+        function setProg(id, hz) {
+            document.querySelectorAll('.program-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`btn-${id}`).classList.add('active');
+            
+            if (id === 'custom') {
+                customControls.classList.remove('hidden-custom');
+                presetDescBox.textContent = presetDescriptions['custom'];
+                // Keep existing state.hz but make it visible
+            } else {
+                customControls.classList.add('hidden-custom');
+                state.hz = hz;
+                document.getElementById('hzRange').value = hz;
+                hzLabel.textContent = hz + "Hz";
+                presetDescBox.textContent = presetDescriptions[id];
+            }
+            
+            document.getElementById('sessionTitleDisplay').textContent = (id === 'custom') ? "Custom Tuning" : document.querySelector(`#btn-${id} h3`).textContent;
+            document.documentElement.style.setProperty('--pulse-duration', (1/state.hz) + 's');
+            syncAudio();
+        }
+
+        document.getElementById('hzRange').oninput = (e) => {
+            state.hz = parseFloat(e.target.value);
+            hzLabel.textContent = state.hz + "Hz";
+            document.documentElement.style.setProperty('--pulse-duration', (1/state.hz) + 's');
+            syncAudio();
+        };
+
+        document.getElementById('intRange').oninput = (e) => {
+            state.intensity = parseInt(e.target.value) / 100;
+            document.getElementById('intLabel').textContent = e.target.value + "%";
+        };
+
+        function setHue(color, idx) {
+            state.hue = color;
+            strobeSurface.style.backgroundColor = color;
+            document.querySelectorAll('[id^="hue-"]').forEach(h => h.classList.remove('ring-2', 'ring-indigo-500'));
+            document.getElementById(`hue-${idx}`).classList.add('ring-2', 'ring-indigo-500');
+
+            if (idx === 1) hueReasoning.textContent = "White: Max intensity for vivid visuals.";
+            if (idx === 2) hueReasoning.textContent = "Amber: Blocks blue-light. Promotes melatonin.";
+            if (idx === 3) hueReasoning.textContent = "Indigo: Short wavelengths for calming effect.";
+        }
+
+        audioBtn.onclick = () => {
+            state.audioEnabled = !state.audioEnabled;
+            if (state.audioEnabled) {
+                audioBtn.classList.add('bg-indigo-600', 'border-indigo-400');
+                audioBtn.classList.remove('bg-white/5', 'border-white/10');
+                audioStatus.textContent = "ON";
+                audioStatus.classList.replace('text-gray-500', 'text-indigo-400');
+            } else {
+                audioBtn.classList.remove('bg-indigo-600', 'border-indigo-400');
+                audioBtn.classList.add('bg-white/5', 'border-white/10');
+                audioStatus.textContent = "OFF";
+                audioStatus.classList.replace('text-indigo-400', 'text-gray-500');
+            }
+            if (!audioCtx) setupAudio();
+            syncAudio();
+        };
+
+        mainAction.onclick = startSession;
+        stopBtn.onclick = stopSession;
+    </script>
+</body>
+</html>
